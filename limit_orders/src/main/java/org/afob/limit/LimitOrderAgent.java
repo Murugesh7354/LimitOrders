@@ -7,6 +7,7 @@ import org.afob.prices.PriceListener;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+ import java.util.Iterator;
 
 public class LimitOrderAgent implements PriceListener {
     private final ExecutionClient executionClient;
@@ -18,15 +19,20 @@ public class LimitOrderAgent implements PriceListener {
     }
 
     @Override
-    public void priceTick(String productId, BigDecimal price) {
-        // Iterate over a copy of the orders list to avoid ConcurrentModificationException
-        for (Order order : new ArrayList<>(orders)) {
-            if (order.getProductId().equals(productId) && order.isExecutable(price)) {
+public void priceTick(String productId, BigDecimal price) {
+    Iterator<Order> iterator = orders.iterator();
+    while (iterator.hasNext()) {
+        Order order = iterator.next();
+        if (order.getProductId().equals(productId) && order.isExecutable(price)) {
+            try {
                 executeOrder(order);
+                iterator.remove(); 
+            } catch (ExecutionException e) {
+                System.err.println("Order execution failed for product " + productId + ": " + e.getMessage());
             }
         }
     }
-
+}
     public void addOrder(boolean isBuy, String productId, int amount, BigDecimal limitPrice) {
         orders.add(new Order(isBuy, productId, amount, limitPrice));
     }
@@ -38,10 +44,10 @@ public class LimitOrderAgent implements PriceListener {
             } else {
                 executionClient.sell(order.getProductId(), order.getAmount());
             }
-            // Remove the order once it's executed
+           
             orders.remove(order);
         } catch (ExecutionException e) {
-            // Handle the exception, maybe retry logic or logging
+           
             System.err.println("Order execution failed: " + e.getMessage());
         }
     }
