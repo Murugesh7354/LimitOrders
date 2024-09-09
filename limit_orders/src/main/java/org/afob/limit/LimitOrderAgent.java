@@ -18,21 +18,27 @@ public class LimitOrderAgent implements PriceListener {
         this.orders = new ArrayList<>();
     }
 
-    @Override
+@Override
 public void priceTick(String productId, BigDecimal price) {
     Iterator<Order> iterator = orders.iterator();
     while (iterator.hasNext()) {
         Order order = iterator.next();
-        if (order.getProductId().equals(productId) && order.isExecutable(price)) {
-            try {
+        
+        // Check if the product matches and the price is favorable for execution
+        if (order.getProductId().equals(productId)) {
+            if (order.isBuy() && price.compareTo(order.getLimitPrice()) <= 0) {
+               
                 executeOrder(order);
                 iterator.remove(); 
-            } catch (ExecutionException e) {
-                System.err.println("Order execution failed for product " + productId + ": " + e.getMessage());
+            } else if (!order.isBuy() && price.compareTo(order.getLimitPrice()) >= 0) {
+                
+                executeOrder(order);
+                iterator.remove(); 
             }
         }
     }
 }
+
     public void addOrder(boolean isBuy, String productId, int amount, BigDecimal limitPrice) {
         orders.add(new Order(isBuy, productId, amount, limitPrice));
     }
